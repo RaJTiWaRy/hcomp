@@ -16,7 +16,7 @@ typedef struct t_node{
 #include "list.h"
 #include "huffman.h"
 
-const float version = 1.0;
+const float version = 1.1;
 
 
 void show_help() {
@@ -32,7 +32,7 @@ void show_invalid_args() {
 }
 
 
-/* gets unit of file size (B, KB, MB, GB) */
+/* Gets unit of file size (B, KB, MB, GB) */
 uint8_t get_unit(size_t b) {
 	float log_val = log2(b);
 	if(log_val >= 30) {
@@ -45,11 +45,11 @@ uint8_t get_unit(size_t b) {
 		return 'K';
 	}
 	else {
-		return ' ';
+		return '0';
 	}
 }
 
-/* gets decimal value of the file size as per the unit */
+/* Returns decimal value of the file size as per the unit */
 float get_value(size_t b, char c) {
 	switch(c) {
 		case 'G' :
@@ -64,7 +64,7 @@ float get_value(size_t b, char c) {
 }
 
 
-int main(const int argc, const char* argv[]) {
+int main(const int argc, const char *argv[]) {
 	switch (argc) {
 		case 1: {
 			/* no arguements */
@@ -126,8 +126,10 @@ int main(const int argc, const char* argv[]) {
 				printf("generating Huffman codes...\n");
 				get_code(root, code, huff_code);
 
-				bytes_out = write_header_info(argv[3], freq_table, (uint32_t)bytes_in);
-				bytes_out += compress(argv[3], argv[2], bytes_in, huff_code);
+
+				bytes_out = write_check_num(argv[2], argv[3], huff_code);
+				bytes_out += write_header_info(argv[3], freq_table, (uint32_t)bytes_in);
+				bytes_out += compress(argv[2], argv[3], bytes_in, huff_code);
 				
 				printf("\nread ~%.3f%c%c\n", get_value(bytes_in, get_unit(bytes_in)), get_unit(bytes_in), 'B');
 				printf("wrote ~%.3f%c%c\n", get_value(bytes_out, get_unit(bytes_out)), get_unit(bytes_out), 'B');
@@ -135,7 +137,14 @@ int main(const int argc, const char* argv[]) {
 			
 			/* decompression */
 			else if(strcmp(argv[1], "-d") == 0) {
-				bytes_in = parse_header_info(argv[2], freq_table);
+				
+				/* Verifying the file */
+				if(check(argv[2]) == false) {
+					fprintf(stderr, "error: %s is not a valid hcomp archive\n", argv[2]);
+					exit(2); 
+				}
+
+				bytes_in += parse_header_info(argv[2], freq_table);
 				
 				for(int i = 0; i < 256; i++) {
 						if(freq_table[i]) {
@@ -147,6 +156,7 @@ int main(const int argc, const char* argv[]) {
 						append(&pending_list, new_node);
 					}
 				}
+
 				printf("rebuilding Huffman tree... \n");
 				root = build_tree(&pending_list);
 

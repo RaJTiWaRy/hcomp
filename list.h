@@ -1,6 +1,4 @@
-/* implementation of a list for holding huffman tree nodes(type t_node) as keys
- * having few simple abstractions
- */
+/* Implementation of a singly linked list for holding type t_node as a key */
 
 #ifndef LIST_H
 #define LIST_H
@@ -31,7 +29,7 @@ void append(l_node **list, t_node *t) {
 }
 
 
-/* find minimum frequency */
+/* Finds minimum frequency */
 uint32_t find_min(l_node **list) {
 	l_node *current = *list;
 	uint32_t min = UINT_MAX;
@@ -46,7 +44,7 @@ uint32_t find_min(l_node **list) {
 }
 
 
-/* remove first node with frequency x from the list and return its address */
+/* Removes first t_node with frequency x from the list and return its address */
 t_node *extract(l_node **list, uint32_t x) {
 	l_node *head = *list;
 	l_node *current = head;
