@@ -1,4 +1,4 @@
-/* contains routines used for compression and decompression */
+/* Contains routines used for compression and decompression */
 
 #ifndef HUFFMAN_H
 #define HUFFMAN_H
@@ -26,13 +26,72 @@ size_t read(const char *source, uint32_t *table) {
 }
 
 
+/* Writes first char (i.e first 8 bits) of the encoded bitstring at the beginning of the compressed file.
+ * Before starting decompression, these the chars are compared (see check() function) , if they donot match,
+ * it implies that the file is not a hcomp archive
+ */
+size_t write_check_num(const char *source, const char* target, char code[][256]) {
+	FILE *fin = fopen(source, "rb");
+	FILE *fout = fopen(target, "wb");
+	
+	uint8_t check_num = 0;
+	uint8_t current_char = 0;
+	uint8_t ors = 0;
+	uint16_t len = 0;
 
-/* Writes chars and their frequencies to compressed file so that the Huffman
- * tree can be rebuilt during decompression.
+	while(ors < 8) {
+		if(!feof(fin) && fread(&current_char, sizeof(current_char), 1, fin)) {
+			len = strlen(code[current_char]);
+			for(int i = 0; i < len; i++) {
+				if(code[current_char][i] == '1') {
+					check_num = check_num | 1;
+				}
+				ors++;
+				if(ors == 8) {
+					break;
+				}
+				else check_num = check_num << 1;
+			}
+		}
+	}
+	
+	fputc(check_num, fout);
+	fclose(fin);
+	fclose(fout);
+	return sizeof(check_num);
+}
+
+
+
+bool check(const char* source){
+	FILE *fin = fopen(source, "rb");
+	if(fin == false) {
+		fprintf(stderr,"error: %s not found\n", source);
+		exit(1);
+	}
+
+	uint8_t check_num;
+	uint8_t num;
+	uint16_t c;
+
+	fread(&check_num, sizeof(check_num), 1, fin);
+	fread(&c, sizeof(c), 1, fin);
+
+	fseek(fin, c*(sizeof(uint8_t) + sizeof(uint32_t)) + sizeof(uint32_t), SEEK_CUR);
+	fread(&num, sizeof(num), 1, fin);
+	fclose(fin);
+
+	return (num == check_num) ? true : false;
+}
+
+
+
+/* Writes chars and their frequencies to compressed file so that the tree can
+ * be rebuilt during decompression.
  * This is called before the huffman code is written
  */
 size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_bytes) {
-	FILE* fout = fopen(target, "wb");
+	FILE* fout = fopen(target, "ab");
 
 	size_t bytes_written = 0;
 	uint8_t ascii_char;
@@ -67,7 +126,7 @@ size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_by
 
 
 
-/* Reads frequency table from compressed file for rebuilding Huffman tree */
+/* Reads frequency table from compressed file for rebuilding the huffman tree */
 size_t parse_header_info(const char* source, uint32_t *table){
 	FILE* fin = fopen(source, "rb");
 	if(fin == NULL) {
@@ -80,8 +139,10 @@ size_t parse_header_info(const char* source, uint32_t *table){
 	uint8_t ascii_char;
 	uint32_t frequency;
 	uint16_t c;
+
+	fseek(fin, sizeof(uint8_t), SEEK_CUR);
 	fread(&c, sizeof(c), 1, fin);
-	bytes_read += sizeof(c);
+	bytes_read += sizeof(c) + sizeof(uint8_t);
 
 	for(int i = 0; i < c; i++) {
 		fread(&ascii_char, sizeof(ascii_char), 1, fin);
@@ -95,7 +156,7 @@ size_t parse_header_info(const char* source, uint32_t *table){
 
 
 
-/* Builds Huffman tree using nodes from the list of pending nodes.
+/* Builds tree using nodes from the list of pending nodes.
  * This is done till there is only one node left in the pending list (i.e a single tree)
  */
 t_node *build_tree(l_node **t) {
@@ -123,7 +184,7 @@ t_node *build_tree(l_node **t) {
 
 
 
-/* Traverses the tree to generate Huffman code and store it in a string
+/* Traverses the tree to generate huffman code and store it in a string
  * at corresponding ascii char valued index
  */
 void get_code(t_node *t, char *current_code, char hcode[][256]) {
@@ -149,11 +210,11 @@ void get_code(t_node *t, char *current_code, char hcode[][256]) {
 
 
 
-/* Writes the source file to target using corresponding Huffman codes instead of ascii codes.
- * Starts by reading the source file again, fills up current_buff(an unsigned char) with Huffman code
+/* Writes the source file to target using corresponding huffman codes instead of ascii codes.
+ * Starts by reading the source file again, fills up current_buff(an unsigned char) with huffman code
  * and writes it to the target file.
  */
-size_t compress(const char *target, const char *source, uint32_t n_bytes, char code[][256]) {
+size_t compress(const char *source, const char *target, uint32_t n_bytes, char code[][256]) {
 	FILE *fin = fopen(source, "rb");
 	FILE *fout = fopen(target, "ab");
 
@@ -213,7 +274,7 @@ size_t compress(const char *target, const char *source, uint32_t n_bytes, char c
 
 
 
-/* Traverse Huffman tree while parsing Huffman codes, and as a leaf node is reached, 
+/* Traverse the tree while parsing huffman codes, and as a leaf node is reached, 
  * write the corresponding char to target file.
  * As 8 bits are read at a time, bit manipulations are used to differentiate 1s from 0s.
  * The additional arguement b is just used for counting the no. of bytes read
@@ -230,7 +291,7 @@ size_t decompress(const char *source, const char *target, t_node* root, size_t *
 	 */
 	uint16_t c = 0; /* #leaf_nodes */
 	uint32_t uncomp_bytes = 0;
-
+	fseek(fin, sizeof(uint8_t), SEEK_CUR);
 	fread(&c, sizeof(c), 1, fin);
 	fseek(fin, c*(sizeof(uint8_t) + sizeof(uint32_t)), SEEK_CUR); 
 	fread(&uncomp_bytes, sizeof(uncomp_bytes), 1, fin);
@@ -247,8 +308,7 @@ size_t decompress(const char *source, const char *target, t_node* root, size_t *
 	uint8_t current_char = 0;  /* char read from fin (source) */
 	uint8_t check = 0; /* used to check bits in current_char */
 
-	/* Now parsing the actual Huffman code and decoding it*/
-	printf("decoding Huffman code and writing %s...\n", target);
+	printf("decoding huffman code and writing %s...\n", target);
 	t_node *current = root;
 	while(feof(fin) == false && fread(&current_char, sizeof(current_char), 1, fin) == true) {
 		for(int8_t i = 7; i >= 0; i--) {
