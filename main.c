@@ -16,7 +16,7 @@ typedef struct t_node{
 #include "list.h"
 #include "huffman.h"
 
-const float version = 1.1;
+const float version = 1.2;
 
 
 void show_help() {
@@ -27,7 +27,7 @@ void show_help() {
 
 
 void show_invalid_args() {
-	printf("invalid arguements\n");
+	printf("error: invalid arguements\n");
 	printf("see 'hcomp --help' for usage\n");
 }
 
@@ -49,6 +49,7 @@ uint8_t get_unit(size_t b) {
 	}
 }
 
+
 /* Returns decimal value of the file size as per the unit */
 float get_value(size_t b, char c) {
 	switch(c) {
@@ -68,11 +69,11 @@ int main(const int argc, const char *argv[]) {
 	switch (argc) {
 		case 1: {
 			/* no arguements */
-			printf("no arguements given\n");
+			printf("error: no arguements\n");
 			printf("see 'hcomp --help' for usage\n");
 			break;
 		}
-
+		
 		
 		case 2 : {
 			/* --version , --help */
@@ -93,6 +94,7 @@ int main(const int argc, const char *argv[]) {
 			l_node* pending_list = NULL;
 			size_t bytes_in = 0;
 			size_t bytes_out = 0;
+			uint16_t len_pending_list = 0;
 
 			t_node * root = NULL;
 
@@ -117,15 +119,19 @@ int main(const int argc, const char *argv[]) {
 						new_node->left = NULL;
 						new_node->right = NULL;
 						append(&pending_list, new_node);
+						len_pending_list++;
 					}
-				}
-				       
-				printf("building Huffman tree...\n");
+				}			       
+				printf("building huffman tree...\n");
 				root = build_tree(&pending_list);
 							
-				printf("generating Huffman codes...\n");
-				get_code(root, code, huff_code);
-
+				printf("generating huffman codes...\n");
+				if(len_pending_list == 1) {
+					huff_code[root->character][0] = '0';
+				}
+				else {
+					get_code(root, code, huff_code);
+				}
 
 				bytes_out = write_check_num(argv[2], argv[3], huff_code);
 				bytes_out += write_header_info(argv[3], freq_table, (uint32_t)bytes_in);
@@ -137,13 +143,8 @@ int main(const int argc, const char *argv[]) {
 			
 			/* decompression */
 			else if(strcmp(argv[1], "-d") == 0) {
+				check(argv[2]);
 				
-				/* Verifying the file */
-				if(check(argv[2]) == false) {
-					fprintf(stderr, "error: %s is not a valid hcomp archive\n", argv[2]);
-					exit(2); 
-				}
-
 				bytes_in += parse_header_info(argv[2], freq_table);
 				
 				for(int i = 0; i < 256; i++) {
@@ -157,7 +158,7 @@ int main(const int argc, const char *argv[]) {
 					}
 				}
 
-				printf("rebuilding Huffman tree... \n");
+				printf("rebuilding huffman tree... \n");
 				root = build_tree(&pending_list);
 
 				bytes_out += decompress(argv[2], argv[3], root, &bytes_in);
