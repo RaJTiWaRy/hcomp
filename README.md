@@ -25,13 +25,14 @@ using gcc : ` $ gcc -lm -o hcomp main.c`
 using clang : `$ clang -lm -o hcomp main.c `		
 
 ### Screens
-Running hcomp on kennedy.xls and sum from [The Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry)
-![testing](http://i.imgur.com/Z6hQsuq.png)
+Running hcomp on kennedy.xls and sum from [The Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry) and also showing the running time
+<img src="http://i.imgur.com/WMsEwdz.pngwidth" width="600">
 
-Error Handling
-![error handling](http://i.imgur.com/oltCA4M.png)
+Error Handling and other commands		
+<img src="http://i.imgur.com/58QV7C7.png" width="600">
 
-[//]: # (imgur post link : http://imgur.com/a/dUKRr)
+
+[//]: # (imgur post link : http://imgur.com/a/EZArw)
 
 __PS :__
 Sometimes the compressed file may turn out to be bigger than the original file, this is because the compressed file contains additional information used for decompression.		
