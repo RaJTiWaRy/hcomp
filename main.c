@@ -5,7 +5,13 @@
 #include <stdbool.h>
 #include <math.h>
 
-/* defining the tree node as t_node */
+/* defining macros for ANSI escape codes */
+#define RED_BOLD "\033[31;1m"
+#define BOLD "\033[1m"
+#define ITALIC "\033[3m"
+#define RESET "\033[0m"
+
+/* defining the huffman tree node as t_node */
 typedef struct t_node{
 	uint8_t character;
 	uint32_t frequency;
@@ -13,10 +19,10 @@ typedef struct t_node{
 	struct t_node* right;	
 } t_node;
 
+const float version = 1.3;
+
 #include "list.h"
 #include "huffman.h"
-
-const float version = 1.2;
 
 
 void show_help() {
@@ -27,8 +33,8 @@ void show_help() {
 
 
 void show_invalid_args() {
-	printf("error: invalid arguements\n");
-	printf("see 'hcomp --help' for usage\n");
+	fprintf(stderr, BOLD "hcomp: " RED_BOLD "error: " RESET "invalid arguements\n");
+	fprintf(stderr, "see 'hcomp --help' for usage\n");
 }
 
 
@@ -50,7 +56,7 @@ uint8_t get_unit(size_t b) {
 }
 
 
-/* Returns decimal value of the file size as per the unit */
+/* Returns value of the file size as per the unit */
 float get_value(size_t b, char c) {
 	switch(c) {
 		case 'G' :
@@ -69,11 +75,10 @@ int main(const int argc, const char *argv[]) {
 	switch (argc) {
 		case 1: {
 			/* no arguements */
-			printf("error: no arguements\n");
-			printf("see 'hcomp --help' for usage\n");
+			fprintf(stderr, BOLD "hcomp: " RED_BOLD "error: " RESET "no arguements\n");
+			fprintf(stderr, "see 'hcomp --help' for usage\n");
 			break;
 		}
-		
 		
 		case 2 : {
 			/* --version , --help */
@@ -89,14 +94,13 @@ int main(const int argc, const char *argv[]) {
 			break;
 		}
 
-
 		case 4 : {
 			l_node* pending_list = NULL;
+			t_node * root = NULL;
+
 			size_t bytes_in = 0;
 			size_t bytes_out = 0;
 			uint16_t len_pending_list = 0;
-
-			t_node * root = NULL;
 
 			uint32_t freq_table[256];
 			memset(freq_table, 0, sizeof(freq_table));
@@ -111,7 +115,7 @@ int main(const int argc, const char *argv[]) {
 				
 				bytes_in = read(argv[2], freq_table);
 
-				for(int i = 0; i < 256; i++) {
+				for(uint16_t i = 0; i < 256; i++) {
 						if(freq_table[i]) {
 						t_node* new_node = (t_node*)malloc(sizeof(t_node));
 						new_node->frequency = freq_table[i];
@@ -121,11 +125,9 @@ int main(const int argc, const char *argv[]) {
 						append(&pending_list, new_node);
 						len_pending_list++;
 					}
-				}			       
-				printf("building huffman tree...\n");
+				}
+				
 				root = build_tree(&pending_list);
-							
-				printf("generating huffman codes...\n");
 				if(len_pending_list == 1) {
 					huff_code[root->character][0] = '0';
 				}
@@ -136,9 +138,11 @@ int main(const int argc, const char *argv[]) {
 				bytes_out = write_check_num(argv[2], argv[3], huff_code);
 				bytes_out += write_header_info(argv[3], freq_table, (uint32_t)bytes_in);
 				bytes_out += compress(argv[2], argv[3], bytes_in, huff_code);
-				
-				printf("\nread ~%.3f%c%c\n", get_value(bytes_in, get_unit(bytes_in)), get_unit(bytes_in), 'B');
-				printf("wrote ~%.3f%c%c\n", get_value(bytes_out, get_unit(bytes_out)), get_unit(bytes_out), 'B');
+
+				printf("read %-15s " ITALIC "~%.3f%c%c\n", argv[2], get_value(bytes_in, get_unit(bytes_in)), get_unit(bytes_in), 'B');
+				printf(RESET);
+				printf("wrote %-15s" ITALIC "~%.3f%c%c\n", argv[3], get_value(bytes_out, get_unit(bytes_out)), get_unit(bytes_out), 'B');
+				printf(RESET);
 			}
 			
 			/* decompression */
@@ -147,7 +151,7 @@ int main(const int argc, const char *argv[]) {
 				
 				bytes_in += parse_header_info(argv[2], freq_table);
 				
-				for(int i = 0; i < 256; i++) {
+				for(uint16_t i = 0; i < 256; i++) {
 						if(freq_table[i]) {
 						t_node* new_node = (t_node*)malloc(sizeof(t_node));
 						new_node->frequency = freq_table[i];
@@ -158,13 +162,13 @@ int main(const int argc, const char *argv[]) {
 					}
 				}
 
-				printf("rebuilding huffman tree... \n");
 				root = build_tree(&pending_list);
-
 				bytes_out += decompress(argv[2], argv[3], root, &bytes_in);
 			
-				printf("\nread ~%.3f%c%c\n", get_value(bytes_in, get_unit(bytes_in)), get_unit(bytes_in), 'B');
-				printf("wrote ~%.3f%c%c\n", get_value(bytes_out, get_unit(bytes_out)), get_unit(bytes_out), 'B');
+				printf("read %-15s " ITALIC "~%.3f%c%c\n", argv[2], get_value(bytes_in, get_unit(bytes_in)), get_unit(bytes_in), 'B');
+				printf(RESET);
+				printf("wrote %-15s" ITALIC "~%.3f%c%c\n", argv[3], get_value(bytes_out, get_unit(bytes_out)), get_unit(bytes_out), 'B');
+				printf(RESET);
 			}
 
 			else {
@@ -172,7 +176,6 @@ int main(const int argc, const char *argv[]) {
 			}
 			break;
 		}
-
 
 		default:
 			show_invalid_args();

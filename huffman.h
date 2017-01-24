@@ -3,39 +3,40 @@
 #ifndef HUFFMAN_H
 #define HUFFMAN_H
 
-/* exit codes used
- * 1 -> file not found
- * 2 -> invalid file
- * 3 -> empty file
- */
+
+void file_not_found_error(const char *file_name) {
+	fprintf(stderr, BOLD "hcomp: " RED_BOLD "error: " RESET "%s not found\n", file_name);
+	exit(1);
+}
+
+
+void empty_file_error(const char *file_name) {
+	fprintf(stderr, BOLD "hcomp: " RED_BOLD "error: " RESET "%s is an empty file\n", file_name);
+	exit(2);
+}
+
 
 /* Read the input file and make the frequency table */
 size_t read(const char *source, uint32_t *table) {
 	size_t bytes_read = 0;
 	FILE *fin = fopen(source, "rb");
-	
+
 	if(!fin) {
-		fprintf(stderr,"error: %s not found\n", source);
-		exit(1);
+		file_not_found_error(source);
 	}
 
 	fseek(fin, 0, SEEK_END);
-	long int size = ftell(fin);
+	bytes_read = (size_t)(ftell(fin));
 
-	if(size == 0){
+	if(bytes_read == 0){
 		fclose(fin);
-		fprintf(stderr, "error: %s is an empty file\n", source);
-		exit(3);
+		empty_file_error(source);
 	}
 	else {
 		fseek(fin, 0, SEEK_SET);
-		printf("Reading %s...\n", source);
 		uint8_t buff;
-		while(!feof(fin)) {
-			if(fread(&buff, sizeof(buff), 1, fin)) {
-				table[(uint8_t)(buff)]++;
-				bytes_read++;
-			}
+		while(!feof(fin) && fread(&buff, sizeof(buff), 1, fin)) {
+			table[(uint8_t)buff]++;
 		}
 		fclose(fin);
 		return bytes_read;
@@ -49,7 +50,7 @@ size_t read(const char *source, uint32_t *table) {
  * it implies that the file is not a hcomp archive.
  *
  * It's a heuristic and in an in some rare case, the chars may match and hcomp may produce some
- * garbage output file or a lead to a segmentation fault while running decompression routines.
+ * garbage output file or end with a segmentation fault while doing so.
  * It's rare because here's how works:
  *   - 1st byte -> read to check_num
  *   - the next 2 bytes -> read to c
@@ -69,7 +70,7 @@ size_t write_check_num(const char *source, const char* target, char code[][256])
 	while(ors < 8) {
 		if(!feof(fin) && fread(&current_char, sizeof(current_char), 1, fin)) {
 			len = strlen(code[current_char]);
-			for(int i = 0; i < len; i++) {
+			for(uint16_t i = 0; i < len; i++) {
 				if(code[current_char][i] == '1') {
 					check_num = check_num | 1;
 				}
@@ -83,11 +84,11 @@ size_t write_check_num(const char *source, const char* target, char code[][256])
 			}
 		}
 		else {
-			check_num = check_num << 8 - ors;
+			check_num = check_num << (8 - ors);
 			break;
 		}
 	}
-	
+
 	fputc(check_num, fout);
 	fclose(fin);
 	fclose(fout);
@@ -96,11 +97,10 @@ size_t write_check_num(const char *source, const char* target, char code[][256])
 
 
 
-void check(const char* source){
+void check(const char* source) {
 	FILE *fin = fopen(source, "rb");
 	if(!fin) {
-		fprintf(stderr, "error: %s not found\n", source);
-		exit(1);
+		file_not_found_error(source);
 	}
 
 	fseek(fin, 0, SEEK_END);
@@ -108,8 +108,7 @@ void check(const char* source){
 
 	if(size == 0){
 		fclose(fin);
-		fprintf(stderr, "error: %s is an empty file\n", source);
-		exit(3);
+		empty_file_error(source);
 	}
 	else {
 		fseek(fin, 0, SEEK_SET);
@@ -125,8 +124,8 @@ void check(const char* source){
 		fclose(fin);
 
 		if(num != check_num) {
-			fprintf(stderr, "error: %s is not a hcomp archive\n", source);
-			exit(2);
+			fprintf(stderr, BOLD "hcomp: " RED_BOLD "error: " RESET "%s is not a hcomp archive\n", source);
+			exit(3);
 		}
 	}
 }
@@ -145,7 +144,7 @@ size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_by
 	uint32_t frequency;
 	
 	uint16_t c = 0; /* counts the no. of distinct ascii chars i.e #leaf_nodes*/
-	for(int i = 0; i < 256; i++) {
+	for(uint16_t i = 0; i < 256; i++) {
 		if(table[i] != 0) {
 			c++;
 		}
@@ -154,7 +153,7 @@ size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_by
 	fwrite(&c, sizeof(c), 1, fout);
 	bytes_written += sizeof(c);
 
-	for(int i = 0; i < 256; i++) {
+	for(uint16_t i = 0; i < 256; i++) {
 		if(table[i] != 0) {
 			ascii_char = (uint8_t)(i);
 			frequency = table[i];
@@ -162,7 +161,6 @@ size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_by
 			fwrite(&ascii_char, sizeof(ascii_char), 1, fout);
 			fwrite(&frequency, sizeof(frequency), 1, fout);
 			bytes_written += sizeof(ascii_char) + sizeof(frequency);
-		//	printf("%c  %lld\n", ascii_char, frequency);
 		}
 	}
 	fwrite(&uncomp_bytes, sizeof(uncomp_bytes), 1, fout);
@@ -174,14 +172,12 @@ size_t write_header_info(const char* target, uint32_t* table, uint32_t uncomp_by
 
 
 /* Read frequency table from compressed file for rebuilding the huffman tree */
-size_t parse_header_info(const char* source, uint32_t *table){
+size_t parse_header_info(const char* source, uint32_t *table) {
 	FILE* fin = fopen(source, "rb");
 	if(!fin) {
-		fprintf(stderr,"error: %s not found\n", source);
-		exit(1);
+		file_not_found_error(source);
 	}
 
-	printf("reading %s...\n", source);
 	size_t bytes_read = 0;
 	uint8_t ascii_char;
 	uint32_t frequency;
@@ -191,7 +187,7 @@ size_t parse_header_info(const char* source, uint32_t *table){
 	fread(&c, sizeof(c), 1, fin);
 	bytes_read += sizeof(c) + sizeof(uint8_t);
 
-	for(int i = 0; i < c; i++) {
+	for(uint16_t i = 0; i < c; i++) {
 		fread(&ascii_char, sizeof(ascii_char), 1, fin);
 		fread(&frequency, sizeof(frequency), 1, fin);
 		table[ascii_char] = frequency;
@@ -273,11 +269,9 @@ size_t compress(const char *source, const char *target, uint32_t n_bytes, char c
 	int16_t len = 0, i = -1, j;
 	size_t x = 0; /* counts the no. of bytes that have been read from input */
 
-	printf("writing %s...\n", target);
-
 	do {
 		i = -1;
-		if(feof(fin) == false && fread(&current_char, sizeof(current_char), 1, fin) == true) {
+		if(!feof(fin) && fread(&current_char, sizeof(current_char), 1, fin)) {
 			i = current_char, j = 0;
 		
 			len = strlen(code[i]);
@@ -290,7 +284,6 @@ size_t compress(const char *source, const char *target, uint32_t n_bytes, char c
 				/* if current_buff is filled with 8 bits, write it to fout */
 				if(ors == 8) {
 					fputc(current_buff, fout);
-				//	printf("%d\n", current_buff );
 					current_buff = 0;
 					ors = 0;
 					bytes_written++;
@@ -300,7 +293,6 @@ size_t compress(const char *source, const char *target, uint32_t n_bytes, char c
 				else if(x == n_bytes-1 && j == len - 1) {
 					current_buff = current_buff << (8 - ors);
 					fputc(current_buff, fout);
-				//	printf("%d\n", current_buff );
 					bytes_written++;
 				}
 
@@ -355,9 +347,8 @@ size_t decompress(const char *source, const char *target, t_node* root, size_t *
 	uint8_t current_char = 0;  /* char read from fin (source) */
 	uint8_t check = 0; /* used to check bits in current_char */
 
-	printf("decoding huffman codes and writing %s...\n", target);
 	t_node *current = root;
-	while(feof(fin) == false && fread(&current_char, sizeof(current_char), 1, fin) == true) {
+	while(!feof(fin) && fread(&current_char, sizeof(current_char), 1, fin)) {
 		for(int8_t i = 7; i >= 0; i--) {
 			check = current_char & two_raised_to[i];
 			
