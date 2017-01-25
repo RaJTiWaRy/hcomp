@@ -32,15 +32,15 @@ size_t read(const char *source, uint32_t *table) {
 		fclose(fin);
 		empty_file_error(source);
 	}
-	else {
-		fseek(fin, 0, SEEK_SET);
-		uint8_t buff;
-		while(!feof(fin) && fread(&buff, sizeof(buff), 1, fin)) {
-			table[(uint8_t)buff]++;
-		}
-		fclose(fin);
-		return bytes_read;
+	
+	fseek(fin, 0, SEEK_SET);
+	uint8_t buff;
+	while(!feof(fin) && fread(&buff, sizeof(buff), 1, fin)) {
+		table[(uint8_t)buff]++;
 	}
+	
+	fclose(fin);
+	return bytes_read;
 }
 
 
