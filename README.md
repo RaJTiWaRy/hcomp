@@ -18,22 +18,25 @@ __Implementation__ : *Using huffman coding*
 	* If a leaf node is reached at any point, corresponding char is written to the target file
 
 *_Update_ : Now verifies file before running the decompression routines. This ensures hcomp decompresses only hcomp archives (this is a heuristic and can fail in some rare cases)*
+<br />
+<br />
 
-
-### __Building :__
-using gcc : ` $ gcc -lm -o hcomp main.c`		
-using clang : `$ clang -lm -o hcomp main.c `		
-
-### Screens
-Running hcomp on kennedy.xls and sum from [The Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry) and also showing the running time
+### Building :
+using gcc : ` $ gcc -lm -o hcomp main.c` <br />
+using clang : `$ clang -lm -o hcomp main.c ` <br />
+<br />
+### Screens :
+Running hcomp on kennedy.xls and sum from [The Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry) and also showing the running time <return>
 <img src="http://i.imgur.com/WMsEwdz.pngwidth" width="600">
-
-Error Handling and other commands		
+<br />
+Error Handling and other commands <br />
 <img src="http://i.imgur.com/58QV7C7.png" width="600">
-
-
-[//]: # (imgur post link : http://imgur.com/a/EZArw)
+<br />
+<br />
 
 __PS :__
-Sometimes the compressed file may turn out to be bigger than the original file, this is because the compressed file contains additional information used for decompression.		
+Sometimes the compressed file may turn out to be bigger than the original file, this is because the compressed file contains additional information used for decompression. <br/>
 (It is most likely to happen with very small files)
+
+### License :
+All hcomp source code is licensed under the terms of the MIT license.
